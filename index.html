@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>염증의 증상 형성평가 퀴즈</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Pretendard Web Font -->
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <!-- Canvas Confetti (폭죽 효과용 라이브러리) -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+        }
+        /* 화면 흔들림 애니메이션 (오답 시) */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-8px); }
+            20%, 40%, 60%, 80% { transform: translateX(8px); }
+        }
+        .shake-effect {
+            animation: shake 0.5s ease-in-out;
+        }
+        /* 폭탄 커지는 애니메이션 */
+        @keyframes bomb-expand {
+            0% { transform: scale(0.3) rotate(0deg); opacity: 0; }
+            50% { transform: scale(1.3) rotate(-15deg); opacity: 1; }
+            70% { transform: scale(1) rotate(15deg); }
+            100% { transform: scale(1.5); opacity: 0; }
+        }
+        .bomb-animation {
+            animation: bomb-expand 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+        /* 연기 구름 효과 */
+        @keyframes smoke-fade {
+            0% { transform: scale(0.8); opacity: 0; }
+            50% { opacity: 0.8; }
+            100% { transform: scale(2); opacity: 0; }
+        }
+        .smoke-animation {
+            animation: smoke-fade 1s ease-out forwards;
+        }
+        /* 페이드인 효과 */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in {
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen flex flex-col items-center justify-between antialiased text-slate-800">
+
+    <!-- 배경 장식 요소 -->
+    <div class="fixed inset-0 -z-10 bg-[radial-gradient(120%_120%_at_50%_10%,#fff_40%,#e2e8f0_100%)]"></div>
+
+    <!-- 헤더 영역 -->
+    <header class="w-full max-w-lg mx-auto px-6 pt-6 flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+            <span class="text-2xl">🩺</span>
+            <h1 class="text-lg font-extrabold tracking-tight text-slate-700">염증의 증상 형성평가</h1>
+        </div>
+        <div id="progress-indicator" class="text-sm font-bold bg-slate-200 text-slate-700 px-3 py-1 rounded-full hidden">
+            1 / 10
+        </div>
+    </header>
+
+    <!-- 메인 컨텐츠 컨테이너 -->
+    <main class="w-full max-w-lg mx-auto px-4 py-4 flex-grow flex flex-col justify-center">
+        
+        <!-- 1. 시작 화면 -->
+        <section id="start-screen" class="bg-white rounded-3xl p-8 shadow-xl border border-slate-100 flex flex-col items-center text-center space-y-6 fade-in">
+            <div class="w-20 h-20 bg-red-50 rounded-2xl flex items-center justify-center text-4xl shadow-inner animate-pulse">
+                🔥
+            </div>
+            <div class="space-y-2">
+                <h2 class="text-2xl md:text-3xl font-black text-slate-800 leading-tight">염증의 증상 퀴즈</h2>
+                <p class="text-slate-500 text-base">염증의 국소 및 전신 증상에 대해 얼마나 잘 이해하고 있는지 점검해 봅시다!</p>
+            </div>
+            
+            <div class="w-full bg-slate-50 rounded-2xl p-4 text-left border border-slate-100 space-y-2">
+                <h3 class="font-bold text-slate-700 flex items-center text-base">
+                    <span class="mr-2">📋</span> 퀴즈 구성 안내
+                </h3>
+                <ul class="text-sm text-slate-600 space-y-1">
+                    <li class="flex items-center"><span class="w-1.5 h-1.5 bg-green-500 rounded-full mr-2"></span> 쉬운 난이도: 4문제</li>
+                    <li class="flex items-center"><span class="w-1.5 h-1.5 bg-blue-500 rounded-full mr-2"></span> 중간 난이도: 4문제</li>
+                    <li class="flex items-center"><span class="w-1.5 h-1.5 bg-purple-500 rounded-full mr-2"></span> 어려운 난이도: 2문제</li>
+                </ul>
+            </div>
+
+            <button id="btn-start" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-lg md:text-xl py-4 rounded-2xl shadow-lg shadow-indigo-100 transition-transform active:scale-95 duration-100">
+                퀴즈 시작하기 🚀
+            </button>
+        </section>
+
+        <!-- 2. 퀴즈 본 화면 -->
+        <section id="quiz-screen" class="hidden flex flex-col space-y-4">
+            <!-- 진행 상태 바 -->
+            <div class="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
+                <div id="progress-bar" class="bg-indigo-600 h-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+
+            <!-- 문제 카드 -->
+            <div class="bg-white rounded-3xl p-6 md:p-8 shadow-xl border border-slate-100 space-y-5 fade-in">
+                <!-- 난이도 배지 -->
+                <div id="difficulty-badge" class="inline-block px-3 py-1 rounded-full text-xs font-black tracking-wider uppercase">
+                    쉬움
+                </div>
+
+                <!-- 문제 텍스트 -->
+                <h2 id="question-text" class="text-xl md:text-2xl font-extrabold leading-snug text-slate-800">
+                    문제가 이곳에 표시됩니다.
+                </h2>
+
+                <!-- 보기 영역 (큰 터치 영역 및 큰 폰트) -->
+                <div id="options-container" class="space-y-3 pt-2">
+                    <!-- 버튼 동적 생성 영역 -->
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. 결과 화면 -->
+        <section id="result-screen" class="hidden bg-white rounded-3xl p-8 shadow-xl border border-slate-100 flex flex-col items-center text-center space-y-6 fade-in">
+            <div id="result-emoji" class="text-6xl">
+                🏆
+            </div>
+            <div class="space-y-1">
+                <h2 class="text-2xl md:text-3xl font-black text-slate-800">퀴즈 결과</h2>
+                <p id="result-text" class="text-slate-500 text-lg font-bold">10문제 중 10문제를 맞췄습니다!</p>
+            </div>
+
+            <div class="w-full bg-slate-50 rounded-2xl p-5 border border-slate-100">
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-white p-3 rounded-xl border border-slate-100">
+                        <span class="block text-xs font-semibold text-slate-400">최종 점수</span>
+                        <span id="score-text" class="text-3xl font-black text-indigo-600">100점</span>
+                    </div>
+                    <div class="bg-white p-3 rounded-xl border border-slate-100">
+                        <span class="block text-xs font-semibold text-slate-400">소요 시간</span>
+                        <span id="time-text" class="text-3xl font-black text-emerald-600">00:45</span>
+                    </div>
+                </div>
+            </div>
+
+            <button id="btn-restart" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-lg py-4 rounded-2xl shadow-lg transition-transform active:scale-95 duration-100">
+                다시 풀기 🔄
+            </button>
+        </section>
+
+    </main>
+
+    <!-- 하단 푸터 -->
+    <footer class="w-full max-w-lg mx-auto px-6 py-6 text-center text-xs text-slate-400">
+        © 염증의 증상 형성평가 • 학생용 모바일 퀴즈 앱
+    </footer>
+
+    <!-- 피드백 애니메이션 레이어 (정답/오답 팝업) -->
+    <div id="feedback-overlay" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm hidden">
+        <!-- 오답 폭탄 연출용 컨테이너 -->
+        <div id="bomb-container" class="relative flex flex-col items-center justify-center p-6 rounded-3xl max-w-xs text-center">
+            <!-- 폭탄 본체 이모지 -->
+            <div id="bomb-emoji" class="text-8xl hidden filter drop-shadow-lg select-none">💣</div>
+            <!-- 폭발 화염 효과 -->
+            <div id="explosion-effect" class="text-9xl hidden filter drop-shadow-lg select-none">💥</div>
+            <!-- 연기 효과 -->
+            <div id="smoke-effect" class="absolute inset-0 flex items-center justify-center text-7xl opacity-0 select-none">💨💨</div>
+            
+            <!-- 피드백 텍스트 카드 -->
+            <div id="feedback-card" class="bg-white rounded-3xl p-6 shadow-2xl border-2 border-slate-100 mt-4 max-w-xs scale-90 opacity-0 transition-all duration-300">
+                <span id="feedback-badge" class="inline-block px-3 py-1 rounded-full text-xs font-black mb-2"></span>
+                <h3 id="feedback-title" class="text-2xl font-black mb-2">정답입니다!</h3>
+                <p id="feedback-explanation" class="text-slate-600 text-sm leading-relaxed mb-4">해설이 들어가는 위치입니다.</p>
+                <button id="btn-next" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl transition-transform active:scale-95">
+                    다음 문제로 ➡️
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 스크린 리더용 아리아 라이브 영역 (웹 접근성 준수) -->
+    <div id="sr-announcer" class="sr-only" aria-live="assertive"></div>
+
+    <script>
+        // 10가지 퀴즈 데이터 정의 (쉬움 4, 중간 4, 어려움 2)
+        // 답의 번호가 한곳으로 치우치지 않게 고르게 분포함 (0: 1번 보기, 1: 2번 보기, 2: 3번 보기, 3: 4번 보기)
+        const quizQuestions = [
+            {
+                num: 1,
+                difficulty: "쉬움",
+                difficultyColor: "bg-green-100 text-green-700 border border-green-200",
+                question: "다음 중 염증의 5대 국소 증상에 해당하지 않는 전신 증상은 무엇인가요?",
+                options: [
+                    "피부나 국소 조직이 붉게 변하는 발적",
+                    "염증 부위가 일시적으로 부어오르는 종창",
+                    "조직의 손상으로 발생하는 불쾌한 감각인 통증",
+                    "체온이 전체적으로 떨어지고 밥맛이 없어지는 식욕 감퇴"
+                ],
+                answer: 3, // 식욕 감퇴 (4번 보기)
+                explanation: "식욕 감퇴는 상해 인자가 침범한 조직 부위와 상관없이 몸 전체에 영향을 미쳐 나타나는 대표적인 '전신 증상'입니다."
+            },
+            {
+                num: 2,
+                difficulty: "쉬움",
+                difficultyColor: "bg-green-100 text-green-700 border border-green-200",
+                question: "고대 로마 시대의 켈수스(Celsus)가 기록한 염증의 4대 증상에 포함되지 않으며, 이후 갈레노스(Galenus)가 추가하여 '5대 증상'을 완성시킨 것은 무엇인가요?",
+                options: [
+                    "염증 부위의 대사 활동으로 생기는 발열",
+                    "주요 조직이 파괴되거나 신경에 문제가 생기는 기능 이상",
+                    "혈장 성분이 삼출되어 부피가 일시적으로 늘어나는 종창",
+                    "감각 신경이 압박되거나 자극을 받아 발생하는 통증"
+                ],
+                answer: 1, // 기능 이상 (2번 보기)
+                explanation: "켈수스는 발열, 발적, 종창, 통증을 기록하였고, 갈레노스가 국소의 '기능 이상'을 추가하여 비로소 염증의 5대 증상이 완성되었습니다."
+            },
+            {
+                num: 3,
+                difficulty: "쉬움",
+                difficultyColor: "bg-green-100 text-green-700 border border-green-200",
+                question: "염증 부위가 빨갛게 변하는 현상인 '발적'이 발생하는 직접적인 생리학적 원인은 무엇인가요?",
+                options: [
+                    "모세혈관의 혈류량이 늘어나고 적혈구의 수가 증가하기 때문",
+                    "신경 마비로 인해 혈액이 응고되고 탁해지기 때문",
+                    "백혈구들이 감염된 균을 잡아먹으며 붉은 화학 물질을 분출하기 때문",
+                    "혈관벽이 찢어지며 외부로 다량의 산소가 방출되기 때문"
+                ],
+                answer: 0, // 모세혈관의 혈류량... (1번 보기)
+                explanation: "발적은 염증이 발생한 부위의 모세혈관에 혈류량이 늘어나고, 적혈구 수가 급격히 밀집되면서 겉으로 붉게 보이는 현상입니다."
+            },
+            {
+                num: 4,
+                difficulty: "쉬움",
+                difficultyColor: "bg-green-100 text-green-700 border border-green-200",
+                question: "손상된 조직 주변 혈관에서 혈액의 액체 성분인 '혈장'이 삼출되어 나와 조직에 고이면서 일시적으로 부풀어 오르는 현상을 무엇이라고 하나요?",
+                options: [
+                    "통증 (Pain)",
+                    "발열 (Heat)",
+                    "종창 (Swelling)",
+                    "기능 이상 (Loss of Function)"
+                ],
+                answer: 2, // 종창 (3번 보기)
+                explanation: "혈장 성분이 주변 조직으로 삼출되는 현상 때문에 세포외 부피가 일시적으로 비정상 증가하는 증상을 '종창'이라고 합니다."
+            },
+            {
+                num: 5,
+                difficulty: "중간",
+                difficultyColor: "bg-blue-100 text-blue-700 border border-blue-200",
+                question: "국소 부위에 염증이 생겼을 때 나타나는 '발열' 현상에 대한 설명 중 가장 옳은 것은 무엇인가요?",
+                options: [
+                    "염증 부위 자체의 온도는 체온(약 36.5도)보다 항상 더 높다.",
+                    "혈액의 흐름 증가와 대사 활동으로 열이 생기며, 체온보다 높지 않더라도 주변 조직보다는 온도가 높다.",
+                    "혈류의 흐름이 차단되면서 국소 온도가 급격히 급하강하는 저체온 현상이다.",
+                    "혈관벽에 가득 찬 백혈구의 열 전도 속도가 체온 유지 기능을 무력화하기 때문이다."
+                ],
+                answer: 1, // 혈액의 흐름 증가와... (2번 보기)
+                explanation: "염증 부위 자체는 전신 체온(심부 온도)보다 높지는 않지만, 혈류 증가와 대사 활동 때문에 주위 조직보다는 온도가 높게 느껴집니다."
+            },
+            {
+                num: 6,
+                difficulty: "중간",
+                difficultyColor: "bg-blue-100 text-blue-700 border border-blue-200",
+                question: "염증 부위에서 불쾌하고 고통스러운 '통증'이 느끼게 되는 주된 원인(기전) 두 가지를 올바르게 고른 것은 무엇인가요?",
+                options: [
+                    "백혈구 수의 급격한 소멸과 모세혈관의 극단적 수축",
+                    "적혈구 수의 감소와 말단 세포들의 산소 결핍 현상",
+                    "부종(종창)에 의한 감각신경 압박 및 각종 염증 매개 물질에 의한 감각신경 자극",
+                    "국소 발열로 인한 피부 겉표면 신경망의 급격한 열성 변성"
+                ],
+                answer: 2, // 부종에 의한... (3번 보기)
+                explanation: "통증은 손상 부위에 찬 조직액(종창)이 감각신경을 직접 압박하거나, 체내에서 분비된 염증 매개 화학 물질이 감각신경 말단을 자극하여 발생합니다."
+            },
+            {
+                num: 7,
+                difficulty: "중간",
+                difficultyColor: "bg-blue-100 text-blue-700 border border-blue-200",
+                question: "염증이 생겼을 때 우리 몸 전체에서 일어나는 전신 및 임상적 변화에 대한 설명으로 올바르지 않은 것은 무엇인가요?",
+                options: [
+                    "염증이 심해져서 급성기에 돌입하면 적혈구 침강 속도(ESR)가 평소보다 느려진다.",
+                    "임상 증상으로 피로, 식욕 감퇴, 쇠약, 수면 양상의 변화가 동반된다.",
+                    "염증의 대표적 급성기 반응 물질인 C-반응단백(CRP)의 농도가 증가한다.",
+                    "몸 전체에 발열 증상이 나타나며, 때에 따라 백혈구의 비정상적인 수치 변화를 보인다."
+                ],
+                answer: 0, // 염증이 심해져서... (1번 보기)
+                explanation: "염증 급성기에는 적혈구가 줄에 꿴 엽전 모양으로 뭉치는 '연전 현상' 때문에 더 빠르게 가라앉으므로 적혈구 침강 속도(ESR)는 '빨라'집니다."
+            },
+            {
+                num: 8,
+                difficulty: "중간",
+                difficultyColor: "bg-blue-100 text-blue-700 border border-blue-200",
+                question: "환자의 몸 안에 염증이 실제로 존재하고 있는지 유무를 판정하기 위해, 의사가 주로 혈액에서 측정하여 확인하는 두 가지 핵심 지표는 무엇인가요?",
+                options: [
+                    "적혈구 산소 포화도와 백혈구의 산소 소모 속도",
+                    "혈소판 침강 속도와 포도당 및 젖산 농도",
+                    "모세혈관의 순간 혈류 속도와 체온 변화량의 가속도",
+                    "적혈구 침강 속도(ESR)와 C-반응단백(CRP) 수치"
+                ],
+                answer: 3, // 적혈구 침강 속도... (4번 보기)
+                explanation: "적혈구 침강 속도(ESR)와 급성기 반응 단백질인 C-반응단백(CRP)은 염증 유무를 판별하는 가장 널리 쓰이는 혈액학적 지표입니다."
+            },
+            {
+                num: 9,
+                difficulty: "어려운",
+                difficultyColor: "bg-purple-100 text-purple-700 border border-purple-200",
+                question: "염증이 발생하면 일반적으로 면역을 담당하는 백혈구 수가 증가합니다. 그러나 특정 질환이나 특수 감염 시 백혈구 수가 감소하게 되는데, 다음 중 백혈구 수치의 감소가 나타나지 않는 일반적인 상황은 무엇인가요?",
+                options: [
+                    "신체 일부의 급성 피부 외상으로 인한 일반적인 세균 침투 및 초기 염증 반응",
+                    "바이러스나 리케차, 원충 감염 상황",
+                    "체내 면역 시스템이 극도로 붕괴된 말기 암 환자 상태",
+                    "심각한 전신 손상을 입어 백혈구 생성에 지장이 생긴 특수 세균 감염 상황"
+                ],
+                answer: 0, // 신체 일부의 급성... (1번 보기)
+                explanation: "일반적인 급성 염증 반응에서는 면역 세포의 집중을 위해 혈액 내 백혈구 수가 증가합니다. 반면, 특정 특수 감염이나 말기 암 환자 등에서는 감소 현상이 나타납니다."
+            },
+            {
+                num: 10,
+                difficulty: "어려운",
+                difficultyColor: "bg-purple-100 text-purple-700 border border-purple-200",
+                question: "염증의 급성기에 적혈구가 줄에 꿴 엽전 모양으로 뭉쳐지는 '적혈구 연전 현상'의 직접적 결과와, 이때 급증하는 대표적 혈액 성분을 올바르게 짝지은 것은 무엇인가요?",
+                options: [
+                    "적혈구 침강 속도가 느려짐 - 아세틸콜린 수치 감소",
+                    "적혈구 침강 속도가 빨라짐 - C-반응단백(CRP) 수치 증가",
+                    "적혈구 침강 속도가 빨라짐 - 헤모글로빈 및 철분 농도 급증",
+                    "적혈구 침강 속도가 느려짐 - 면역글로불린 수치 급증"
+                ],
+                answer: 1, // 적혈구 침강 속도가... (2번 보기)
+                explanation: "적혈구 연전 현상으로 무거워진 적혈구는 더 신속히 가라앉아 적혈구 침강 속도(ESR)를 증가시키며, 간에서 생성되는 염증성 표지자인 C-반응단백(CRP) 수치가 급증하게 됩니다."
+            }
+        ];
+
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let startTime = null;
+        let timerInterval = null;
+
+        const startScreen = document.getElementById('start-screen');
+        const quizScreen = document.getElementById('quiz-screen');
+        const resultScreen = document.getElementById('result-screen');
+        
+        const btnStart = document.getElementById('btn-start');
+        const btnRestart = document.getElementById('btn-restart');
+        const btnNext = document.getElementById('btn-next');
+        
+        const progressIndicator = document.getElementById('progress-indicator');
+        const progressBar = document.getElementById('progress-bar');
+        const difficultyBadge = document.getElementById('difficulty-badge');
+        const questionText = document.getElementById('question-text');
+        const optionsContainer = document.getElementById('options-container');
+        
+        const feedbackOverlay = document.getElementById('feedback-overlay');
+        const bombContainer = document.getElementById('bomb-container');
+        const bombEmoji = document.getElementById('bomb-emoji');
+        const explosionEffect = document.getElementById('explosion-effect');
+        const smokeEffect = document.getElementById('smoke-effect');
+        const feedbackCard = document.getElementById('feedback-card');
+        const feedbackBadge = document.getElementById('feedback-badge');
+        const feedbackTitle = document.getElementById('feedback-title');
+        const feedbackExplanation = document.getElementById('feedback-explanation');
+        
+        const resultEmoji = document.getElementById('result-emoji');
+        const resultText = document.getElementById('result-text');
+        const scoreText = document.getElementById('score-text');
+        const timeText = document.getElementById('time-text');
+        const srAnnouncer = document.getElementById('sr-announcer');
+
+        // 스크린 리더용 안내 도우미 함수
+        function announceToScreenReader(message) {
+            srAnnouncer.textContent = message;
+        }
+
+        // 시간 표시 포맷팅 함수 (MM:SS)
+        function formatTime(seconds) {
+            const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+            const s = (seconds % 60).toString().padStart(2, '0');
+            return `${m}:${s}`;
+        }
+
+        // 퀴즈 시작 함수
+        function startQuiz() {
+            currentQuestionIndex = 0;
+            score = 0;
+            startTime = Date.now();
+            
+            // 타이머 시작
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                // 백그라운드에서 시간만 체크
+            }, 1000);
+
+            startScreen.classList.add('hidden');
+            resultScreen.classList.add('hidden');
+            quizScreen.classList.remove('hidden');
+            progressIndicator.classList.remove('hidden');
+
+            loadQuestion();
+            announceToScreenReader("퀴즈가 시작되었습니다. 첫 번째 문제로 이동합니다.");
+        }
+
+        // 문제 로드 함수
+        function loadQuestion() {
+            const q = quizQuestions[currentQuestionIndex];
+            
+            // 프로그레스 바 및 텍스트 업데이트
+            const progressPercent = ((currentQuestionIndex) / quizQuestions.length) * 100;
+            progressBar.style.width = `${progressPercent}%`;
+            progressIndicator.textContent = `${currentQuestionIndex + 1} / ${quizQuestions.length}`;
+            
+            // 난이도 및 문제 텍스트 적용
+            difficultyBadge.textContent = `난이도: ${q.difficulty}`;
+            difficultyBadge.className = `inline-block px-3 py-1 rounded-full text-xs font-black tracking-wider uppercase ${q.difficultyColor}`;
+            questionText.textContent = q.question;
+            
+            // 보기 생성
+            optionsContainer.innerHTML = '';
+            q.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = "w-full text-left bg-slate-100 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-2xl p-4 md:p-5 text-base md:text-lg font-bold flex items-center space-x-3 transition-all active:scale-[0.99] focus:outline-none focus:ring-4 focus:ring-indigo-200 focus:bg-indigo-50 text-slate-700";
+                
+                // 보기 번호 원형 라벨
+                const numLabel = document.createElement('span');
+                numLabel.className = "flex-shrink-0 w-8 h-8 rounded-full bg-white border border-slate-300 text-slate-600 font-extrabold flex items-center justify-center text-sm";
+                numLabel.textContent = idx + 1;
+                
+                // 보기 텍스트
+                const textSpan = document.createElement('span');
+                textSpan.className = "flex-grow leading-snug";
+                textSpan.textContent = opt;
+                
+                btn.appendChild(numLabel);
+                btn.appendChild(textSpan);
+                btn.onclick = () => selectOption(idx);
+                
+                optionsContainer.appendChild(btn);
+            });
+
+            // 스크린 리더용 읽기
+            announceToScreenReader(`문제 ${currentQuestionIndex + 1}. 난이도 ${q.difficulty}. ${q.question}`);
+        }
+
+        // 정오답 선택 처리 함수
+        function selectOption(selectedIdx) {
+            const q = quizQuestions[currentQuestionIndex];
+            const isCorrect = selectedIdx === q.answer;
+
+            // 모든 옵션 버튼 비활성화
+            const buttons = optionsContainer.querySelectorAll('button');
+            buttons.forEach(btn => btn.disabled = true);
+
+            // 오버레이 및 피드백 노출 준비
+            feedbackOverlay.classList.remove('hidden');
+            feedbackCard.className = "bg-white rounded-3xl p-6 shadow-2xl border-2 border-slate-100 mt-4 max-w-xs scale-90 opacity-0 transition-all duration-300";
+
+            if (isCorrect) {
+                // 1. 정답인 경우: 폭죽 효과 및 긍정적 메시지
+                score += 10;
+                
+                // 폭죽 팡팡
+                confetti({
+                    particleCount: 150,
+                    spread: 80,
+                    origin: { y: 0.6 }
+                });
+
+                // 스크린 리더 알림
+                announceToScreenReader("정답입니다! 폭죽이 터졌습니다.");
+
+                // 피드백 UI 세팅
+                feedbackBadge.textContent = "CORRECT";
+                feedbackBadge.className = "inline-block px-3 py-1 rounded-full text-xs font-black mb-2 bg-green-100 text-green-700 border border-green-200";
+                feedbackTitle.textContent = "정답입니다! 🎉";
+                feedbackTitle.className = "text-2xl font-black mb-2 text-green-600";
+                feedbackExplanation.textContent = q.explanation;
+
+                // 정답 카드 즉시 노출
+                setTimeout(() => {
+                    feedbackCard.classList.remove('scale-90', 'opacity-0');
+                    feedbackCard.classList.add('scale-100', 'opacity-100');
+                    btnNext.focus();
+                }, 100);
+
+            } else {
+                // 2. 오답인 경우: 폭탄 흔들림 효과 및 피드백
+                
+                // 폭탄 연출 보이기
+                bombEmoji.classList.remove('hidden');
+                bombEmoji.classList.add('bomb-animation');
+                
+                // 화면 전체 진동 효과
+                quizScreen.classList.add('shake-effect');
+                
+                // 스크린 리더 알림
+                announceToScreenReader("아쉽게도 틀렸습니다. 폭탄이 폭발합니다.");
+
+                // 0.4초 후 폭발 효과
+                setTimeout(() => {
+                    bombEmoji.classList.add('hidden');
+                    explosionEffect.classList.remove('hidden');
+                    smokeEffect.classList.add('smoke-animation');
+                }, 400);
+
+                // 0.8초 후 폭발 사라지고 피드백 카드 노출
+                setTimeout(() => {
+                    explosionEffect.classList.add('hidden');
+                    
+                    feedbackBadge.textContent = "INCORRECT";
+                    feedbackBadge.className = "inline-block px-3 py-1 rounded-full text-xs font-black mb-2 bg-red-100 text-red-700 border border-red-200";
+                    feedbackTitle.textContent = "오답입니다 💣";
+                    feedbackTitle.className = "text-2xl font-black mb-2 text-red-600";
+                    feedbackExplanation.textContent = `정답은 ${q.answer + 1}번입니다. \n\n${q.explanation}`;
+
+                    feedbackCard.classList.remove('scale-90', 'opacity-0');
+                    feedbackCard.classList.add('scale-100', 'opacity-100');
+                    btnNext.focus();
+                }, 800);
+            }
+        }
+
+        // '다음 문제로' 버튼 클릭 핸들러
+        function nextQuestion() {
+            // 효과 초기화 및 오버레이 닫기
+            feedbackOverlay.classList.add('hidden');
+            bombEmoji.classList.add('hidden');
+            bombEmoji.classList.remove('bomb-animation');
+            explosionEffect.classList.add('hidden');
+            smokeEffect.classList.remove('smoke-animation');
+            quizScreen.classList.remove('shake-effect');
+
+            currentQuestionIndex++;
+
+            if (currentQuestionIndex < quizQuestions.length) {
+                loadQuestion();
+            } else {
+                showResults();
+            }
+        }
+
+        // 결과 화면 노출 함수
+        function showResults() {
+            if (timerInterval) clearInterval(timerInterval);
+            
+            const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+            
+            quizScreen.classList.add('hidden');
+            progressIndicator.classList.add('hidden');
+            resultScreen.classList.remove('hidden');
+
+            // 점수 및 결과 분석
+            scoreText.textContent = `${score}점`;
+            timeText.textContent = formatTime(elapsedSeconds);
+            resultText.textContent = `총 ${quizQuestions.length}문제 중 ${score / 10}문제를 맞췄습니다!`;
+
+            // 맞춘 점수별 피드백 및 이모지 설정
+            let message = "";
+            if (score === 100) {
+                resultEmoji.textContent = "👑";
+                message = "완벽합니다! 염증의 증상에 관한 모든 개념을 마스터하셨네요!";
+                // 올백 폭죽
+                confetti({ particleCount: 200, spread: 100 });
+            } else if (score >= 70) {
+                resultEmoji.textContent = "✨";
+                message = "참 잘했습니다! 염증의 기전과 증상을 수준 높게 잘 이해하고 계십니다.";
+            } else if (score >= 40) {
+                resultEmoji.textContent = "👍";
+                message = "좋은 시도였습니다! 텍스트 내용을 한 번만 더 정독하면 만점이 가능해요!";
+            } else {
+                resultEmoji.textContent = "📚";
+                message = "염증 증상의 국소 및 전신적 특성을 다시 한 번 꼼꼼히 복습해 봅시다!";
+            }
+
+            const feedbackSummary = document.createElement('p');
+            feedbackSummary.className = "text-slate-600 font-medium text-base mt-2 px-4";
+            feedbackSummary.textContent = message;
+            
+            // 기존 텍스트 제거 후 삽입
+            const existingSummary = resultScreen.querySelector('.summary-desc');
+            if (existingSummary) existingSummary.remove();
+            feedbackSummary.classList.add('summary-desc');
+            resultText.parentNode.insertBefore(feedbackSummary, resultText.nextSibling);
+
+            // 결과 안내 스크린 리더 지원
+            announceToScreenReader(`시험이 완료되었습니다. 최종 점수는 ${score}점, 소요 시간은 ${formatTime(elapsedSeconds)}입니다. ${message}`);
+            
+            btnRestart.focus();
+        }
+
+        // 이벤트 리스너 연결
+        btnStart.addEventListener('click', startQuiz);
+        btnRestart.addEventListener('click', startQuiz);
+        btnNext.addEventListener('click', nextQuestion);
+
+        // 모바일 터치 이벤트 오작동 방지용 세팅
+        document.addEventListener('touchstart', function() {}, {passive: true});
+    </script>
+</body>
+</html>
